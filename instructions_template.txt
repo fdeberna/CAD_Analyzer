@@ -1,0 +1,21 @@
+[myvars]
+### Name of the CAD file(s), you can enter multiple files. Eg. file1.csv,file2.csv ####
+datafile:___path to your CAD____
+
+### Enter the name of the columns from the CAD, corresponding to IncidentID, at scene, en route, dispatch, cleared times, responding unit etc ####
+### This is case and space bar sensitive ###
+IncidentID:
+call:
+atscene:
+enroute:
+dispatch:
+cleared:
+units_columns:
+
+# optional columns (required for cover incidents analysis)
+FirstDue_column:
+ApparatusStation_column:
+
+#For demand and overlap analysis, pick a fraction of hour. Eg. 1 for analysis by the hour (recommended), 0.5 for analysis by the half hour, etc. Must be greater than 0.
+# This is also used for some internal calculations with the other options.
+part_hour = 1
