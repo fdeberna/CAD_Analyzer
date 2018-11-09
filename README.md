@@ -12,4 +12,8 @@ Edit the Instructions file with the required information. This should be self ex
 Step 3:
 Edit the table with the list of units. It’s important that the column names are spelled exactly as shown (Engine, Rescue, Truck, Other). 
 
+CAD_analyzer.py -> Your file to run.
+driver.py -> The file that does the real job.
+cad.py -> several functions useful to anayze the CAD
+
 Run!
