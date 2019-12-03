@@ -123,20 +123,48 @@ def incident_type(dfm,dc,colname,coltype,chars_ef,chars_ab,sepi,rulesep=None):
                 if codes[i][chars_ef[0]] == 'F':  dfm[i, dc[coltype]] = 3
     return dfm
 
+# @jit
+# def timer(arr,travcol,arrcol,enrcol,dict,format=None):
+#     # calculates time between events. Eg: pass Arrive and Enroute to get travel time; pass Dispatch and Arrive to get response time.
+#     # Needs a matrix (faster) and a dictionary for columns: see to_mat function
+#     if type(arr) != np.ndarray:
+#         print('Stop, convert your dataframe to matrix first. Use to_mat function provided in this module.')
+#     else:
+#         for x in range(len(arr)):
+#             arr[x,dict[travcol]] = (pd.to_datetime(arr[x,dict[arrcol]])-pd.to_datetime(arr[x,dict[enrcol]]))/np.timedelta64(1,'s')
+#         # set missing times to -1.
+#         iw = np.where(np.logical_or(arr[:,dict[arrcol]]=='00:00:00',arr[:,dict[enrcol]]=='00:00:00'))
+#         arr[iw,dict[travcol]]= -1.
+#     return arr
 
-
-@jit
-def timer(arr,travcol,arrcol,enrcol,dict):
+def timer(arr,travcol,arrcol,enrcol,format_date=None):
     # calculates time between events. Eg: pass Arrive and Enroute to get travel time; pass Dispatch and Arrive to get response time.
     # Needs a matrix (faster) and a dictionary for columns: see to_mat function
-    if type(arr) != np.ndarray:
-        print('Stop, convert your dataframe to matrix first. Use to_mat function provided in this module.')
+    # if type(arr) != np.ndarray:
+    #     print('Stop, convert your dataframe to matrix first. Use to_mat function provided in this module.')
+    # else:
+    if format_date:
+        print('\n Using Formatted Dates')
+        arr[enrcol] = pd.to_datetime(arr[enrcol], format = format_date)
+        arr[arrcol] = pd.to_datetime(arr[arrcol], format = format_date)
+        arr[travcol] = [x.value / 1e9 for x in arr[arrcol] - arr[enrcol]]
+        # arr[:, dict[travcol]] = (pd.to_datetime(arr[:,dict[arrcol]], format=format_date)-pd.to_datetime(arr[:,dict[enrcol]], format=format_date)).value/1e9
     else:
-        for x in range(len(arr)):
-            arr[x,dict[travcol]] = (pd.to_datetime(arr[x,dict[arrcol]])-pd.to_datetime(arr[x,dict[enrcol]]))/np.timedelta64(1,'s')
-        # set missing times to -1.
-        iw = np.where(np.logical_or(arr[:,dict[arrcol]]=='00:00:00',arr[:,dict[enrcol]]=='00:00:00'))
-        arr[iw,dict[travcol]]= -1.
+        print('\n Inferring Date Format')
+        arr[enrcol] = pd.to_datetime(arr[enrcol], infer_datetime_format=True)
+        arr[arrcol] = pd.to_datetime(arr[arrcol], infer_datetime_format=True)
+        arr[travcol] = [x.value / 1e9 for x in arr[arrcol] - arr[enrcol]]
+        # arr[:, dict[travcol]] = (pd.to_datetime(arr[:, dict[arrcol]], infer_datetime_format=True) - pd.to_datetime(arr[:, dict[enrcol]], infer_datetime_format=True)).value / 1e9
+        # dd[disp] = pd.to_datetime(dd[disp],
+        #                           infer_datetime_format=True)  # pd.to_datetime(dd[disp], format="%m/%d/%Y %H:%M:%S %p")
+        # dd[enrcol] = pd.to_datetime(dd[enrcol], infer_datetime_format=True)
+        # dd[arrcol] = pd.to_datetime(dd[arrcol], infer_datetime_format=True)
+        # dd['travel'] = [x.value / 1e9 for x in dd['Arrived'] - dd['Enroute']]
+        # for x in range(len(arr)):
+        #     arr[x,dict[travcol]] = (pd.to_datetime(arr[x,dict[arrcol]])-pd.to_datetime(arr[x,dict[enrcol]]))/np.timedelta64(1,'s')
+        # # set missing times to -1.
+        # iw = np.where(np.logical_or(arr[:,dict[arrcol]]=='00:00:00',arr[:,dict[enrcol]]=='00:00:00'))
+        # arr[iw,dict[travcol]]= -1.
     return arr
 
 
@@ -191,28 +219,82 @@ def utilization(dfm,datelist,dict,namedisp,nameav,nameinc):
     dts = dfm[:, dict[namedisp]]
     ats = dfm[:, dict[nameav]]
     ub = np.zeros(len(datelist))
+    #make sure incident is string
+    dfm[:,dict[nameinc]]=str(dfm[:,dict[nameinc]])
     utotc = np.zeros(len(datelist))
     uinc = np.zeros(len(datelist))
     busy_time = np.zeros(len(datelist))
     for x in range(len(datelist) - 1):
-        iw = np.logical_and(dts < datelist[x + 1], dts > datelist[x])
-        iw_s = np.logical_or(np.logical_and(dts < datelist[x], ats > datelist[x]),
-                             np.logical_and(dts > datelist[x], dts < datelist[x + 1]))
-        start_end = [[max(dts[y], datelist[x]), min(ats[y], datelist[x + 1])] for y in np.where(iw_s)[0]]
-        if (len(start_end) > 0):
-            startime, endtime = list(map(list, zip(*start_end)))
-            startime = np.array(startime)
-            endtime = np.array(endtime)
-            # total time busy summed over all the units
-            if type(endtime[0]-startime[0]) != np.float64: busy_time[x] = sum(np.array(list(map(datetime.timedelta.total_seconds, endtime - startime))))
-            if type(endtime[0]-startime[0]) == np.float64: busy_time[x] = sum(endtime - startime)
-            # calls received in that hr
-            ub[x] = sum(iw)
-            # all calls (including across) hr
-            utotc[x] = sum(iw_s)
-            # unique incidents
-            uinc[x] = len(np.unique(dfm[iw_s, dict[nameinc]]))
+        try:
+            iw = np.logical_and(dts < datelist[x + 1], dts > datelist[x])
+            iw_s = np.logical_or(np.logical_and(dts < datelist[x], ats > datelist[x]),
+                                 np.logical_and(dts > datelist[x], dts < datelist[x + 1]))
+            start_end = [[max(dts[y], datelist[x]), min(ats[y], datelist[x + 1])] for y in np.where(iw_s)[0]]
+            # print('ok1')
+            if (len(start_end) > 0):
+                # print('ok2')
+                startime, endtime = list(map(list, zip(*start_end)))
+                startime = np.array(startime)
+                endtime = np.array(endtime)
+                # total time busy summed over all the units
+                if type(endtime[0]-startime[0]) != np.float64: busy_time[x] = sum(np.array(list(map(datetime.timedelta.total_seconds, endtime - startime))))
+                if type(endtime[0]-startime[0]) == np.float64: busy_time[x] = sum(endtime - startime)
+                # calls received in that hr
+                ub[x] = sum(iw)
+                # all calls (including across) hr
+                utotc[x] = sum(iw_s)
+                # unique incidents
+                # print('utot',utotc[x])
+                # print('here0',nameinc,dict[nameinc])
+                # print('here',dfm[iw_s, dict[nameinc]])
+                uinc[x] = len(np.unique(dfm[iw_s, dict[nameinc]]))
+                # print('uinc',uinc[x])
+        except TypeError:
+            print('Type Error')
+            print(x,dts,datelist[x],datelist[x+1],iw,iw_s,start_end)
     return ub, utotc, uinc, busy_time
+
+def utilization_v2(df,datelist,disp,clear,nameinc):
+    ub = np.zeros(len(datelist))
+    # make sure incident is string
+    df[nameinc] = df[nameinc].apply(lambda x: str(x))
+    utotc = np.zeros(len(datelist))
+    uinc = np.zeros(len(datelist))
+    busy_time = np.zeros(len(datelist))
+    df_di = df.set_index([disp])
+    for x in range(len(datelist) - 1):
+        try:
+            iwl = df_di.loc[str(datelist[x]):str(datelist[x + 1])]  # np.logical_and(dts < datelist[x + 1], dts > datelist[x])
+            iws_1 = df_di.loc[str(datelist[0]):str(datelist[x])]
+            reset = iws_1.reset_index()
+            part_1 = reset.set_index(clear).loc[str(datelist[x])::]
+            part_2 = df_di.loc[str(datelist[x]):str(datelist[x + 1])]
+            p1 = part_1.reset_index()
+            p2 = part_2.reset_index()
+            select = pd.concat([p1, p2], ignore_index=True)
+            st_end = [[max(select[disp][y], datelist[x]), min(select[clear][y], datelist[x + 1])] for y in select.index]
+            startime, endtime = list(map(list, zip(*st_end)))
+            #startime = np.array(startime)
+            #endtime = np.array(endtime)
+            # total time busy summed over all the units
+            # total time busy summed over all the units
+            # if type(endtime[0] - startime[0]) != np.float64:
+            busy_time[x] = sum([(endtime[c]-startime[c]).value/1e9 for c in range(len(endtime))])
+            #sum(np.array(list(map(datetime.timedelta.total_seconds, endtime - startime))))
+            # if type(endtime[0] - startime[0]) == np.float64: busy_time[x] = sum(endtime - startime)
+            # busy_time[x] = sum(endtime - startime)
+            ub[x] = len(iwl)
+            utotc[x] = len(select)
+            # unique incidents
+            # print('utot',utotc[x])
+            # print('here0',nameinc,dict[nameinc])
+            # print('here',dfm[iw_s, dict[nameinc]])
+            uinc[x] = len(select[nameinc].unique())
+        except TypeError:
+            print('Type Error')
+            print(x,dts,datelist[x],datelist[x+1],iw,iw_s,start_end)
+    return ub, utotc, uinc, busy_time
+
 
 def datelist_1hr(yr,d1,m1,d2,m2):
     # create datelist in 1 hr steps for year yr
@@ -252,16 +334,20 @@ def unixt(df,cols):
 #     return df
 
 @jit
-def count_units(dfm,dict,datelist,disp,available,unit):
+def count_units(dfm,dict,datelist,disp,available,unit,staffname=None):
     # count units that where in service in each time frame of the year
     # needs datelist with 1hr or part of hour intervals
     if type(dfm) != np.ndarray: print('Stop, convert your dataframe to matrix first. Use to_mat function provided in this module.')
     # if (datelist[1]-datelist[0]).value/1e9 != 3600: print('WARNING: datelist not binned by hour!')
     ub = np.zeros(len(datelist))
+    sttot = np.zeros(len(datelist))
     for x in range(len(datelist)-1):
         iw = np.logical_or(np.logical_and(dfm[:,dict[disp]]<datelist[x],dfm[:,dict[available]]>datelist[x]),np.logical_and(dfm[:,dict[disp]]>datelist[x],dfm[:,dict[disp]]<datelist[x+1]))
         ub[x] = len(np.unique(dfm[iw,dict[unit]]))
-    return ub
+        indux = np.unique(dfm[iw, dict[unit]], return_index=True)[1]
+        if staffname: sttot[x] = np.sum(dfm[iw,dict[staffname]][indux])
+    return ub,sttot
+    #sttot
 
 @jit
 def travelt_byhr(dfm,dict,datelist,disp,available,arrcol,enrcol):
@@ -298,7 +384,7 @@ def time_overlaps(arr,datelist,dc,sn,en,inc,amb):
                     ind_e = int(min(arr[alloc[x],dc[en]] - bound_s,int((datelist[1]-datelist[0]).value/1e9)))
                     mat[x,ind_s:ind_e] = 1.
             ovl = np.array([np.sum(mat[:,x]) for x in range(len(mat[0,:]))])
-            if ovl.max()>len(amb): print(i,'Maximum number of units exceeded, check your data'),flag.append(i)
+            if ovl.max()>len(amb): flag.append(i),print(i,'Maximum number of units exceeded, check your data',ovl.max(),datelist[i])
             o.append([len(ovl[ovl==x]) for x in range(int(len(amb)+1))])
         else:
             o.append([0. for x in range(int(len(amb))+1)])
@@ -400,7 +486,7 @@ def queues(srate,nunits,callsrate,x):
     # takes service rate,n of units, calls rate and number of units in service desired (x)
     # returns probability of all units busy, aver. length of queue, waiting times, unit utilization rate, aver number units busy
     # probability of x units busy
-    # service rate in hr-1
+        # service rate in hr-1
     s_rate =  srate
     # unis
     nn = nunits
@@ -414,7 +500,7 @@ def queues(srate,nunits,callsrate,x):
     p0 = 1/(np.sum((r*nn)**kk[0:int(nn)]/kf[0:int(nn)])+ nn*r/math.factorial(nn)/(1-r))
     pw = p0*(nn*r)**nn/math.factorial(nn)/(1-r)
     # p of x custom in system
-    px = (nn*r)**x/np.array(list(map(math.factorial,x)))*p0
+    px = (nn*r)**np.array(x)/np.array(list(map(math.factorial,x)))*p0
     lq = pw*r/(1.-r)
     wt = pw*r/cc/(1.-r)
     return pw,lq,wt,r,pw*r/(1.-r)+nn*r,px
@@ -487,6 +573,79 @@ def reformat_overlaps(dfm, dc, datecol):
             l.append([dfm[d, dc[datecol]], n, dfm[d, dc[n]]])
     dfl = pd.DataFrame.from_records(l, columns=['date', 'number_overlapping', 'seconds'])
     return dfl
+
+def flag_unit_engaged(dfm,dc, unit, ucolname, dispatch, clear):
+# create a flag for when specified unit is engaged
+    for i in range(len(dfm)):
+        if dfm[i, dc[ucolname]] == unit:
+            st = dfm[i, dc[dispatch]]
+            en = dfm[i, dc[clear]]
+            iw = np.where(np.logical_and(dfm[:, dc[dispatch]] < en, dfm[:, dc[dispatch]] > st))[0]
+            dfm[iw, dc[unit]] = 1
+    dataf = pd.DataFrame.from_records(dfm, columns=dc.keys())
+    return dataf
+
+def erf_calculator(dfa,st,disp,inc, unit,atscene,enroute,descriptor_c,descriptor,chief_required,erf_limit):
+    #Effective Response Force calculator
+    chief_name='Other'
+    if chief_required:
+        if len(st[chief_name].dropna())==0:
+            print('Chief Units must be in "Other column".')
+        #### reduce file
+    df = dfa[dfa[descriptor_c].isin(descriptor)]
+    st.columns = [x.strip() for x in st.columns]
+    all_u = [list(st[x].dropna()) for x in ['Engine','Truck','Rescue','Other'] if len(st[x].dropna())>0 ]
+    deploy = [y for x in all_u for y in x]
+    #### reduce more
+    df = df[df[unit].isin(deploy)]
+    # clear values
+    all_incs = len(df)
+    df=df.ix[df[atscene].dropna().index]
+    df=df.ix[df[enroute].dropna().index]
+    df=df.ix[df[disp].dropna().index]
+    df[disp] = pd.to_datetime(df[disp])
+    df[enroute] = pd.to_datetime(df[enroute])
+    df[atscene] = pd.to_datetime(df[atscene])
+    #sort by first arriving
+    df = df.sort_values([atscene])
+    #start
+    # st = time.time()
+    str_f = []
+    for i in df[inc].unique():
+        curr = df[df[inc] == i]
+        #initialize erf and officer
+        erf =0
+        officer = 0
+        j=0
+        erf_index =0
+        this = 0
+        n_engs =0
+        n_trucks=0
+        n_resc = 0
+        while erf<erf_limit and erf_index < len(curr):
+            j = curr[unit].as_matrix()[erf_index]
+            # is this an engine, truck or chief?
+            if j in deploy and j in st.Engine.unique():
+                erf = erf + int(st[st.Engine==j]['Staff Engine'])
+                n_engs = n_engs+1
+            if j in deploy and j in st.Truck.unique():
+                erf = erf + int(st[st.Truck==j]['Staff Truck'])
+                n_trucks= n_trucks+1
+            if j in deploy and j in st.Rescue.unique():
+                erf = erf + int(st[st.Rescue==j]['Staff Rescue'])
+                n_resc= n_resc+1
+            if j in deploy and j in st[chief_name].unique() and chief_required:
+                erf = erf + int(st[st[chief_name]==j]['Staff '+chief_name])
+                officer = officer + 1
+            erf_index = erf_index + 1
+            this = curr[curr[unit]==j][atscene]
+            # print('***',i,this,curr[disp].min(),curr[enroute].min())
+            # print('^^^', float((this - curr[disp].min()) / np.timedelta64(1, 's')),float((this - curr[enroute].min()) / np.timedelta64(1, 's')))
+            # print('-----end-----')
+        str_f.append([i,pd.to_datetime(this.values[0]), erf, float((this - curr[disp].min()) / np.timedelta64(1, 's')),float((this - curr[enroute].min()) / np.timedelta64(1, 's')), n_engs, n_trucks, n_resc, officer])
+    erf_df = pd.DataFrame.from_records(str_f, columns=['incident', 'date_time', 'erf', 'tot_resp_time', 'tot_trav_time',
+                                                       'Engines', 'Trucks', 'Rescues', 'Officer'])
+    return erf_df
 
 
         # @jit
