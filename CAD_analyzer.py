@@ -3,7 +3,7 @@ from tkinter import filedialog
 from tkinter import ttk
 import driver
 import pandas as pd
-
+# this is just a test #
 #https://www.homeandlearn.uk/python-database-form-tabs3.html
 cols = [' ']
 file = ' '
@@ -20,9 +20,9 @@ df = None
 def call_driver_tab1():
     global tkvar,tkvar_att
     if tkvar and tkvar_att:
-        driver.preprocessing(file,pref.get(),delet_dup.get(),tkvar.get(),tkvar_att.get())
+        driver.preprocessing(file,pref.get(),delet_dup.get(),merge_file.get(),tkvar.get(),tkvar_att.get())
     else:
-        driver.preprocessing(file, pref.get(), delet_dup.get())
+        driver.preprocessing(file, pref.get(), delet_dup.get(),merge_file.get())
     #reset tkvar
     tkvar     = None
     tkvar_att = None
@@ -135,11 +135,14 @@ Label(tab1, text="Output Prefix:",font='Helvetica 10 bold').grid(row=1,column=0)
 pref = Entry(tab1)
 pref.grid(row=1, column=1,sticky='W')
 delet_dup = IntVar()
+merge_file = IntVar()
+unroll = IntVar()
 Label(tab1, text="Delete Duplicates",font='Helvetica 10 bold').grid(row=2,column=0)
 Checkbutton(tab1,text=[],variable=delet_dup,state='active',anchor=E).grid(row = 2,column=1,sticky=W)
-unroll = IntVar()
-Button(tab1,text="Reshape File",command=unroll_file_dropdown).grid(row = 3,column=1,sticky=W)
-Button(tab1, text="Run!",command=call_driver_tab1).grid(column=1,row=4)
+Label(tab1, text="Merge Files",font='Helvetica 10 bold').grid(row=3,column=0)
+Checkbutton(tab1,text=[],variable=merge_file,state='active',anchor=E).grid(row = 3,column=1,sticky=W)
+Button(tab1,text="Reshape File",command=unroll_file_dropdown).grid(row = 4,column=1,sticky=W)
+Button(tab1, text="Run!",command=call_driver_tab1).grid(column=1,row=5)
 
 #################################
 ##### TAB 2 STARTS HERE ##########

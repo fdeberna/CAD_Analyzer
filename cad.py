@@ -56,6 +56,25 @@ from numba import jit
 import datetime
 import math
 
+def first_arriving_ALS(df,type_identifier,inc_type,inc_number,unit,nomed,meds):
+    # select first arriving ALS if first arriving BLS was within 4 minutes
+    # needs list of BLS and ALS units
+    #START:
+    # select only bls units:
+    df_notmed = df[df[unit].isin(nomed)]
+    #select only EMS incidents
+    dfnotmed_ems = df_notmed[df_notmed[inc_type]== type_identifier]
+    # only those that received 1st within 4 min
+    incs_first= dfnotmed_ems[(dfnotmed_ems.order==1)*(dfnotmed_ems.travel>=0.)*(dfnotmed_ems.travel<=240)][inc_number].unique()
+    # now select medic responses to incidents served within 4 mins by BLS
+    df_med = df[df[unit].isin(meds)]
+    df_mednfpa = df_med[df_med[inc_number].isin(incs_first)]
+    # sort by incident and by order within incident
+    df_mednfpa = df_mednfpa.sort_values([inc_number,'order'])
+    # keep first arriving med only for each incident
+    travel_first_med = df_mednfpa.drop_duplicates([inc_number],keep='first')
+    #travel_first_med = travel_first_med[travel_first_med>0]
+    return travel_first_med
 
 def remove_duplicates(df,c1,c2):
     df['dup'] = [str(df[c1].ix[x]) + str(df[c2].ix[x]) for x in df.index]

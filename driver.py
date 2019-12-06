@@ -30,6 +30,16 @@ def turnout_time(df,atscene,calltime,timeformat=None):
     dfmt = cad.timer(df, 'turnout', atscene, calltime, timeformat)
     return dfmt
 
+def get_BLS_ALS_units(u):
+    meds = []
+    nomed = []
+    u.columns=[x.strip() for x in u.columns]
+    # look only for ALS units
+    for uu in  ['Engine','Rescue','Other','Truck']:
+        meds= meds+([u.loc[x][uu] for x in u.index if u.loc[x][uu+'_EMS']=='ALS'])
+        nomed = nomed + ([u.loc[x][uu] for x in u.index if u.loc[x][uu+'_EMS']=='BLS'])
+    return nomed,meds
+
 # back to back time
 def bb(dataframe,disp,cleared,unitname,iid):
     dataframe[disp] = pd.to_datetime(dataframe[disp])
@@ -163,7 +173,7 @@ def unroller(dfn,incnum,unitid,rolledc,rolledatt):
 
 
 
-def preprocessing(cf,pref,delet_dup,tkv=None,tkvr=None):
+def preprocessing(cf,pref,delet_dup,merge_file,tkv=None,tkvr=None):
     iid, staffname, atscene, enroute, calltime, disp, cleared, format_date,unitname, firstd, appstat, descriptor_c, descriptor, max_lines, part, data = main_reader(cf)
     filenumber = 0
     for d in data:
@@ -185,9 +195,18 @@ def preprocessing(cf,pref,delet_dup,tkv=None,tkvr=None):
             print('Deleting Duplicates...')
             df = cad.remove_duplicates(df, iid, unitname)
             print('Done.')
-        print('Writing output')
-        df.to_csv(pref + '_preprocess.csv', index=False)
-        print('Done')
+        if merge_file:
+            print(' ')
+            print('Merging....')
+            if filenumber == 1: dall = df.copy()
+            if filenumber > 1: dall = dall.append(df)
+        print('Writing files ',filenumber)
+        df.to_csv(pref + '_'+str(filenumber)+'_preprocess.csv', index=False)
+    if merge_file:
+        print('Writing merged file')
+        dall.to_csv(pref + '_preprocess_merged.csv', index=False)
+    print('Done')
+
 
 
 def run(s,cf,pref,gis,gisf,engine,ladder,rescue,other,overtime,overcount,erf,chief,enforce,erf_out):
@@ -290,6 +309,10 @@ def run(s,cf,pref,gis,gisf,engine,ladder,rescue,other,overtime,overcount,erf,chi
                     checker = checker + 1
                     print('Calculating Arriving Order...')
                     df = arrive_order(df,atscene,iid)
+                    nomed, meds = get_BLS_ALS_units(units_df)
+                    if meds:
+                        fm = cad.first_arriving_ALS(df,descriptor,descriptor_c,iid,unitname,nomed,meds)
+                        fm.to_csv(pref + '_ALS_only_' + 'file_' + str(filenumber) + '.csv', index=False)
                     # if checker == co: df.to_csv('testout.csv')
                     print('Done.')
                 if 'BackToBackTimeA' in opt:
