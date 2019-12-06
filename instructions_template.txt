@@ -1,21 +1,31 @@
 [myvars]
 ### Name of the CAD file(s), you can enter multiple files. Eg. file1.csv,file2.csv ####
-datafile:___path to your CAD____
+
+datafile:
+max_lines: 
 
 ### Enter the name of the columns from the CAD, corresponding to IncidentID, at scene, en route, dispatch, cleared times, responding unit etc ####
-### This is case and space bar sensitive ###
 IncidentID:
 call:
-atscene:
-enroute:
 dispatch:
+enroute:
+atscene:
 cleared:
 units_columns:
 
-# optional columns (required for cover incidents analysis)
+## example formats: %%m/%%d/%%Y %%H:%%M:%%S %%p  or %%m/%%d/%%Y %%H:%%M:%%S
+format_date: 
+
+# CAD column for staff on unit (if any)
+Staff:
+# Column for the type of incident and type of incident to loom for (Description)
+Type_column:
+Description:
+
+#For cover incidents analysis:
 FirstDue_column:
 ApparatusStation_column:
 
-#For demand and overlap analysis, pick a fraction of hour. Eg. 1 for analysis by the hour (recommended), 0.5 for analysis by the half hour, etc. Must be greater than 0.
-# This is also used for some internal calculations with the other options.
+#For demand and overlap analysis, pick a fraction of hour. Eg. 1 for analysis by the hour (recommended), 0.5 for analysis by the half hour, etc.
 part_hour = 1
+
