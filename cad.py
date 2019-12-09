@@ -290,25 +290,26 @@ def utilization_v2(df,datelist,disp,clear,nameinc):
             part_2 = df_di.loc[str(datelist[x]):str(datelist[x + 1])]
             p1 = part_1.reset_index()
             p2 = part_2.reset_index()
-            select = pd.concat([p1, p2], ignore_index=True)
-            st_end = [[max(select[disp][y], datelist[x]), min(select[clear][y], datelist[x + 1])] for y in select.index]
-            startime, endtime = list(map(list, zip(*st_end)))
-            #startime = np.array(startime)
-            #endtime = np.array(endtime)
-            # total time busy summed over all the units
-            # total time busy summed over all the units
-            # if type(endtime[0] - startime[0]) != np.float64:
-            busy_time[x] = sum([(endtime[c]-startime[c]).value/1e9 for c in range(len(endtime))])
+            if len(p1)>0 or len(p2)>0:
+                select = pd.concat([p1, p2], ignore_index=True)
+                st_end = [[max(select[disp][y], datelist[x]), min(select[clear][y], datelist[x + 1])] for y in select.index]
+                startime, endtime = list(map(list, zip(*st_end)))
+                utotc[x] = len(select)
+                # unique incidents
+                # print('utot',utotc[x])
+                # print('here0',nameinc,dict[nameinc])
+                # print('here',dfm[iw_s, dict[nameinc]])
+                uinc[x] = len(select[nameinc].unique())
+                #startime = np.array(startime)
+                #endtime = np.array(endtime)
+                # total time busy summed over all the units
+                # total time busy summed over all the units
+                # if type(endtime[0] - startime[0]) != np.float64:
+                busy_time[x] = sum([(endtime[c]-startime[c]).value/1e9 for c in range(len(endtime))])
             #sum(np.array(list(map(datetime.timedelta.total_seconds, endtime - startime))))
             # if type(endtime[0] - startime[0]) == np.float64: busy_time[x] = sum(endtime - startime)
             # busy_time[x] = sum(endtime - startime)
             ub[x] = len(iwl)
-            utotc[x] = len(select)
-            # unique incidents
-            # print('utot',utotc[x])
-            # print('here0',nameinc,dict[nameinc])
-            # print('here',dfm[iw_s, dict[nameinc]])
-            uinc[x] = len(select[nameinc].unique())
         except TypeError:
             print('Type Error')
             print(x,dts,datelist[x],datelist[x+1],iw,iw_s,start_end)

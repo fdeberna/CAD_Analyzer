@@ -35,9 +35,12 @@ def get_BLS_ALS_units(u):
     nomed = []
     u.columns=[x.strip() for x in u.columns]
     # look only for ALS units
-    for uu in  ['Engine','Rescue','Other','Truck']:
-        meds= meds+([u.loc[x][uu] for x in u.index if u.loc[x][uu+'_EMS']=='ALS'])
-        nomed = nomed + ([u.loc[x][uu] for x in u.index if u.loc[x][uu+'_EMS']=='BLS'])
+    try:
+        for uu in  ['Engine','Rescue','Other','Truck']:
+            meds= meds+([u.loc[x][uu] for x in u.index if u.loc[x][uu+'_EMS']=='ALS'])
+            nomed = nomed + ([u.loc[x][uu] for x in u.index if u.loc[x][uu+'_EMS']=='BLS'])
+    except:
+        pass
     return nomed,meds
 
 # back to back time
@@ -240,6 +243,7 @@ def run(s,cf,pref,gis,gisf,engine,ladder,rescue,other,overtime,overcount,erf,chi
             filenumber = 0
             ueng = utr = uresc = uother = None
             gisf =gisf.strip(' ')
+            units_df = None
             if len(gisf)>0:
                 if gisf.split('.')[1] == 'csv': units_df = pd.read_csv(gisf)
                 if (gisf.split('.')[1] == 'xls') or (gisf.split('.')[1] == 'xlsx'): units_df = pd.read_excel(gisf)
@@ -309,11 +313,12 @@ def run(s,cf,pref,gis,gisf,engine,ladder,rescue,other,overtime,overcount,erf,chi
                     checker = checker + 1
                     print('Calculating Arriving Order...')
                     df = arrive_order(df,atscene,iid)
-                    nomed, meds = get_BLS_ALS_units(units_df)
-                    if meds:
-                        fm = cad.first_arriving_ALS(df,descriptor,descriptor_c,iid,unitname,nomed,meds)
-                        fm.to_csv(pref + '_ALS_only_' + 'file_' + str(filenumber) + '.csv', index=False)
-                    # if checker == co: df.to_csv('testout.csv')
+                    if units_df is not None:
+                        nomed, meds = get_BLS_ALS_units(units_df)
+                        if meds:
+                            fm = cad.first_arriving_ALS(df,descriptor,descriptor_c,iid,unitname,nomed,meds)
+                            fm.to_csv(pref + '_ALS_only_' + 'file_' + str(filenumber) + '.csv', index=False)
+                        # if checker == co: df.to_csv('testout.csv')
                     print('Done.')
                 if 'BackToBackTimeA' in opt:
                     checker = checker + 1
